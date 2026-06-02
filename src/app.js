@@ -218,9 +218,9 @@ class App {
       reader.onerror = () => { alert('Error reading ' + file.name); };
       reader.onload = (e) => {
         const filename = file.name;
-        const size_limit = 2000000;
+        const size_limit = 500000;
         if(file.size > size_limit &&
-           !window.confirm('You are uploading a large file (greater than 2MB).  This may result in poor performance or excess memory consumption.  Are you sure you want to continue?'))
+           !window.confirm('You are uploading a large file (greater than 500kb).  This may result in poor performance or excess memory consumption.  Are you sure you want to continue?'))
           return;
         this.delete_file(filename);  // remove existing version if it exists
         this.create_file(filename, e.target.result);
@@ -233,7 +233,23 @@ class App {
   }
 
   handle_download_file(filename) {
-    alert('download ' + filename);
+    let encrypted_file = this.find_file(filename);
+    if(!encrypted_file) return false;
+
+    const ciphertext = encrypted_file.encrypted_data();
+    const plaintext = this.decrypt_data(ciphertext);
+
+    const blob = new Blob([plaintext]);
+    const anchor_elt = document.createElement('a');
+    const file_url = URL.createObjectURL(blob);
+    anchor_elt.href = file_url;
+    anchor_elt.download = filename;
+    document.body.appendChild(anchor_elt);
+    anchor_elt.click();
+    setTimeout(() => {
+      document.body.removeChild(anchor_elt);
+      URL.revokeObjectURL(file_url);
+    }, 0);
     return false;
   }
 
@@ -588,19 +604,8 @@ class App {
     return base64_ciphertext;
   }
 
-  // "Optimized" version of the JavaScrypt rijndaelEncrypt() routine.
-  // The original routine has a O(n^2) problem because of its use of concat().
-  rijndael_encrypt_v2(bytearray) {
-    let expandedKey = keyExpansion(this.encryption_key);
-    const bpb = Math.floor(blockSizeInBits / 8);
-    let ciphertext_blocks = [];
-
-    ciphertext_blocks.push(getRandomBytes(bpb));
-    borked();
-  }
-
-  // Returns null if message is corrupted and/or encryption key is invalid.
-  decrypt_text(ciphertext) {
+  // NOTE: ciphertext is a Base64-encoded string.
+  decrypt_data(ciphertext) {
     if(!ciphertext) return null;
     if(!this.encryption_key) return null;
     const ct = disarm_base64(ciphertext);
@@ -625,11 +630,28 @@ class App {
     for(let i = 0; i < md5_digestBits.length; i++) {
       if(md5_digestBits[i] !== header[i]) {
         // alert("Message corrupted.  Checksum of decrypted message does not match.");
-        break;
-        //return null;
+        return null;
       }
     }
+    return plaintext;
+  }
+
+  // Returns null if message is corrupted and/or encryption key is invalid.
+  decrypt_text(ciphertext) {
+    const plaintext = this.decrypt_data(ciphertext);
+    if(!plaintext) return null;
     return decode_utf8(plaintext);
+  }
+
+  // "Optimized" version of the JavaScrypt rijndaelEncrypt() routine.
+  // The original routine has a O(n^2) problem because of its use of concat().
+  rijndael_encrypt_v2(bytearray) {
+    let expandedKey = keyExpansion(this.encryption_key);
+    const bpb = Math.floor(blockSizeInBits / 8);
+    let ciphertext_blocks = [];
+
+    ciphertext_blocks.push(getRandomBytes(bpb));
+    borked();
   }
 }
 
