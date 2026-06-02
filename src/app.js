@@ -35,6 +35,12 @@ class App {
     this.update_dom();
   }
 
+  debug() {
+    const n = 0xffffffff;
+    alert(n >> 4);
+    alert(0xffffff);
+  }
+
   is_text_tab_index(tab_index) {
     // TODO: fix this
     return tab_index < 3;
@@ -60,6 +66,8 @@ class App {
         this.switch_to_tab_index(tab_index);
       else if(key === 'e')
         this.handle_edit_tab_command();
+      else if(key === 'd')  // TODO: remove
+        this.debug();
       else
         handled = false;
       if(handled)
@@ -475,12 +483,12 @@ class App {
     for(let i = 0; i < s.length; i += 2)
       md5_update(s.charCodeAt(i));
     md5_finish();
-    kmd5e = byteArrayToHex(digestBits);
+    kmd5e = byteArrayToHex(md5_digestBits);
     md5_init();
     for(let i = 0; i < s.length; i += 2)
       md5_update(s.charCodeAt(i));
     md5_finish();
-    kmd5o = byteArrayToHex(digestBits);
+    kmd5o = byteArrayToHex(md5_digestBits);
     const hs = kmd5e + kmd5o;
     this.encryption_key = hexToByteArray(hs);
   }
@@ -545,8 +553,8 @@ class App {
       md5_update(bytearray[i]);
     md5_finish();
     // Write checksum into first 16 bytes of message buffer.
-    for(let i = 0; i < digestBits.length; i++)
-      message_data[i] = digestBits[i];
+    for(let i = 0; i < md5_digestBits.length; i++)
+      message_data[i] = md5_digestBits[i];
     // Write 32-bit data length into next 4 bytes of message buffer.
     message_data[16 + 0] = (plaintext_byte_length >>> 24) & 0xFF;
     message_data[16 + 1] = (plaintext_byte_length >>> 16) & 0xFF;
@@ -614,11 +622,11 @@ class App {
     }
     const plaintext = plaintext_pieces.join('');
     md5_finish();
-    for(let i = 0; i < digestBits.length; i++) {
-      if(digestBits[i] !== header[i]) {
+    for(let i = 0; i < md5_digestBits.length; i++) {
+      if(md5_digestBits[i] !== header[i]) {
         // alert("Message corrupted.  Checksum of decrypted message does not match.");
         break;
-        return null;
+        //return null;
       }
     }
     return decode_utf8(plaintext);

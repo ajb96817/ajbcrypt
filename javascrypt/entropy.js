@@ -129,7 +129,7 @@
         }
         md5_finish();
         for (i = 0; i < 16; i++) {
-            k[i] = digestBits[i];
+            k[i] = md5_digestBits[i];
         }
 
         md5_init();
@@ -138,7 +138,7 @@
         }
         md5_finish();
         for (i = 0; i < 16; i++) {
-            k[i + 16] = digestBits[i];
+            k[i + 16] = md5_digestBits[i];
         }
 
         return k;
