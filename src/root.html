@@ -1,0 +1,128 @@
+<div id="command_bar">
+  <a href="#" id="lock_command" class="command">Lock</a>
+  <a href="#" id="download_changes_command" class="command">Download&nbsp;Changes</a>
+  <a href="#" id="change_password_command" class="command">Change Password</a>
+</div>
+
+<div id="locked_area">
+  <div id="decrypt_dialog" class="password_dialog">
+    <p>
+      <strong>Content is currently encrypted.</strong>
+      Enter your password to decrypt for viewing and/or editing:
+    </p>
+    <p>
+      Password:
+      <input type="password" class="password_input" id="password_input" />
+      <input type="button" value="Decrypt" id="enter_password_button" />
+    </p>
+  </div>
+
+  <div id="set_password_dialog" class="password_dialog">
+    <p><strong>No encryption password is set yet.</strong></p>
+    <p>Choose a password to get started:</p>
+    <p>
+      <div>New Password:</div>
+      <div><input type="password" class="password_input" id="set_password_input" /></div>
+    </p>
+    <p>
+      <div>Verify New Password:</div>
+      <div><input type="password" class="password_input" id="set_password_verify_input" /></div>
+    </p>
+    <p id="passwords_do_not_match_error" class="hidden error_message">
+      Passwords do not match.  Please try again.
+    </p>
+    <p><input type="button" value="Set Password" id="set_password_button" /></p>
+  </div>
+</div>
+
+
+<div id="unlocked_area">
+  <div id="last_modified">
+    Last modified: <strong id="last_modified_date">24-May-2026 4:27pm</strong>
+  </div>
+
+  <div id="tabs_container">
+    <div id="tab_bar">
+      <div class="tab_label" style="margin-left: 1em;">Notes</div>
+      <div class="tab_label">Passwords</div>
+      <div class="tab_label">Other</div>
+      <div class="tab_label">Files</div>
+    </div>
+
+    <div id="tab_content">
+      <div id="cleartext_tab_content">
+        <div id="viewing_cleartext_commands">
+          <a href="#" id="edit_tab_command" class="command">Edit Page</a> &ndash;
+          <a href="#" id="copy_cleartext_command" class="command">Copy Text</a>
+          <!-- <a href="#" id="copy_ciphertext_command" class="command">Copy ciphertext</a> -->
+        </div>
+        <div id="cleartext_is_empty_message">
+          <em>No text in this page yet.  Edit the page to add some.</em>
+        </div>
+        <div id="cleartext_content"></div>
+      </div>
+      
+      <div id="cleartext_editor_container">
+        <div>Edit your text then click Save Changes below.</div>
+        <textarea id="cleartext_editor"></textarea>
+        <div id="editing_cleartext_commands">
+          <input type="button" id="save_changes_button" value="Save Changes" />
+          <input type="button" id="cancel_changes_button" value="Cancel" />
+        </div>
+      </div>
+
+      <div id="files_tab_content">
+        <div id="file_list_is_empty">
+          There are no encrypted files stored yet.
+        </div>
+        <div id="file_upload_container">
+          File upload:
+          <input type="file" id="file_upload" multiple></input>
+          <input type="button" id="file_upload_button" value="Upload"></input>
+        </div>
+        <table id="files_table">
+          <thead>
+            <tr>
+              <th>Filename</th>
+              <th>Size</th>
+              <th>Last Modified</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="files_table_body"></tbody>
+        </table>
+      </div>
+
+      <div id="change_password_dialog" class="password_dialog">
+        <p>
+          <strong>Changing encryption password.</strong>
+          All content will be re-encrypted using your new password.
+          Please make sure you have backed up your data first to
+          avoid possible data loss if the re-encryption process
+          fails or is interrupted.
+        </p>
+        <p>
+          <div>New Password:</div>
+          <div><input type="password" class="password_input" id="new_password_input"></input></div>
+        </p>
+        <p>
+          <div>Verify New Password:</div>
+          <div><input type="password" class="password_input" id="new_password_verify_input"></input></div>
+        </p>
+        <p>
+          <input type="button" value="Change Password" id="change_password_button"></input>
+          <input type="button" value="Cancel" id="cancel_change_password_button"></input>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="encrypted_data">
+  <div id="verification_ciphertext"></div>
+  <div id="tab_0_ciphertext"></div>
+  <div id="tab_1_ciphertext"></div>
+  <div id="tab_2_ciphertext"></div>
+  <div id="encrypted_files"></div>
+</div>
+
