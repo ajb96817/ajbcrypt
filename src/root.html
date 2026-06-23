@@ -46,7 +46,6 @@
       <div class="tab_label" style="margin-left: 1em;">Notes</div>
       <div class="tab_label">Passwords</div>
       <div class="tab_label">Other</div>
-      <div class="tab_label">Files</div>
     </div>
 
     <div id="tab_content">
@@ -69,28 +68,6 @@
           <input type="button" id="save_changes_button" value="Save Changes" />
           <input type="button" id="cancel_changes_button" value="Cancel" />
         </div>
-      </div>
-
-      <div id="files_tab_content">
-        <div id="file_list_is_empty">
-          There are no encrypted files stored yet.
-        </div>
-        <div id="file_upload_container">
-          File upload:
-          <input type="file" id="file_upload" multiple></input>
-          <input type="button" id="file_upload_button" value="Upload"></input>
-        </div>
-        <table id="files_table">
-          <thead>
-            <tr>
-              <th>Filename</th>
-              <th>Size</th>
-              <th>Last Modified</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="files_table_body"></tbody>
-        </table>
       </div>
 
       <div id="change_password_dialog" class="password_dialog">
@@ -123,6 +100,5 @@
   <div id="tab_0_ciphertext"></div>
   <div id="tab_1_ciphertext"></div>
   <div id="tab_2_ciphertext"></div>
-  <div id="encrypted_files"></div>
 </div>
 

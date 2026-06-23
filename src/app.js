@@ -27,11 +27,8 @@ class App {
     this.elt('cancel_changes_button').onclick = this.handle_cancel_edit_tab_command.bind(this);
     this.elt('copy_cleartext_command').onclick = this.handle_copy_cleartext.bind(this);
     // this.elt('copy_ciphertext_command').onclick = this.handle_copy_ciphertext.bind(this);
-    this.elt('file_upload_button').onclick = this.handle_upload_file.bind(this);
     this.elt('change_password_command').onclick = this.handle_change_password_command.bind(this);
-
     window.addEventListener('keydown', this.handle_key_down.bind(this));
-
     this.update_dom();
   }
 
@@ -39,15 +36,6 @@ class App {
     const n = 0xffffffff;
     alert(n >> 4);
     alert(0xffffff);
-  }
-
-  is_text_tab_index(tab_index) {
-    // TODO: fix this
-    return tab_index < 3;
-  }
-
-  is_files_tab_index(tab_index) {
-    return tab_index === 3;
   }
 
   // Ctrl-key shortcuts.
@@ -58,8 +46,7 @@ class App {
       const tabswitch_keymap = {
         '1': 0, 'n': 0,
         '2': 1, 'p': 1,
-        '3': 2, 'o': 2,
-        '4': 3, 'f': 3
+        '3': 2, 'o': 2
       };
       const tab_index = tabswitch_keymap[key];
       if(tab_index !== undefined)
@@ -146,8 +133,6 @@ class App {
   handle_edit_tab_command() {
     if(this.is_locked())
       return false;
-    if(!this.is_text_tab_index(this.selected_tab_index))
-      return false;
     const cleartext = this.cleartext_for_tab(this.selected_tab_index) ?? '';
     this.elt('cleartext_editor').value = cleartext;
     this.change_state('editing');
@@ -210,90 +195,6 @@ class App {
   //   return false;
   // }
 
-  handle_upload_file() {
-    const file_list = this.elt('file_upload').files;
-    for(const file of [...file_list]) {
-      // TODO: sanitize file names, check and warn for large files
-      const reader = new FileReader();
-      reader.onerror = () => { alert('Error reading ' + file.name); };
-      reader.onload = (e) => {
-        const filename = file.name;
-        const size_limit = 500000;
-        if(file.size > size_limit &&
-           !window.confirm('You are uploading a large file (greater than 500kb).  This may result in poor performance or excess memory consumption.  Are you sure you want to continue?'))
-          return;
-        this.delete_file(filename);  // remove existing version if it exists
-        this.create_file(filename, e.target.result);
-        this.update_dom();
-        this.update_tab_content();
-      };
-      reader.readAsArrayBuffer(file);
-    }
-    return false;
-  }
-
-  handle_download_file(filename) {
-    let encrypted_file = this.find_file(filename);
-    if(!encrypted_file) return false;
-
-    const ciphertext = encrypted_file.encrypted_data();
-    const plaintext = this.decrypt_data(ciphertext);
-
-    const blob = new Blob([plaintext]);
-    const anchor_elt = document.createElement('a');
-    const file_url = URL.createObjectURL(blob);
-    anchor_elt.href = file_url;
-    anchor_elt.download = filename;
-    document.body.appendChild(anchor_elt);
-    anchor_elt.click();
-    setTimeout(() => {
-      document.body.removeChild(anchor_elt);
-      URL.revokeObjectURL(file_url);
-    }, 0);
-    return false;
-  }
-
-  handle_delete_file(filename) {
-    if(window.confirm("Really delete \"" + filename + "\"?")) {
-      this.delete_file(filename);
-      this.update_dom();
-      this.update_tab_content();
-    }
-    return false;
-  }
-
-  delete_file(filename) {
-    let encrypted_file = this.find_file(filename);
-    if(encrypted_file)
-      encrypted_file.parent_node.remove();
-  }
-
-  // Return the EncryptedFile for the given filename, if it exists.
-  find_file(filename) {
-    const encrypted_files = this.gather_encrypted_files();
-    for(const encrypted_file of encrypted_files)
-      if(encrypted_file.filename() === filename)
-        return encrypted_file;
-  }
-
-  create_file(filename, array_buffer) {
-    const bytearray = new Uint8Array(array_buffer);  // view buffer as bytes
-    const encrypted_data = this.encrypt_data(bytearray);
-    const date = new Date();
-    const date_string = [
-      date.getDate().toString().padStart(2, '0'),
-      date.toLocaleString('default', {month: 'short'}),
-      date.getFullYear().toString()
-    ].join('-');  // 01-Jan-2026
-    let file_node = this.create_elt('div', 'encrypted_file');
-    file_node.appendChild(this.create_elt('div', 'filename', filename));
-    file_node.appendChild(this.create_elt('div', 'filesize', array_buffer.byteLength));
-    file_node.appendChild(this.create_elt('div', 'last_modified_date', date_string));
-    file_node.appendChild(this.create_elt('div', 'encrypted_data', encrypted_data));
-    this.elt('encrypted_files').appendChild(file_node);
-    return file_node;
-  }
-
   change_state(new_state) {
     this.state = new_state;
     this.update_dom();
@@ -303,6 +204,8 @@ class App {
   is_locked() {
     return !this.encryption_key;
   }
+
+  tabs_count() { return 3; }
 
   // Set CSS classes, etc. according to the current app state
   update_dom() {
@@ -323,11 +226,7 @@ class App {
     this.show_or_hide_elt('change_password_dialog', this.state === 'change_password');
     this.show_or_hide_elt('cleartext_editor_container', this.state === 'editing');
     this.show_or_hide_elt('viewing_cleartext_commands', !(is_locked || this.state === 'editing' || this.state === 'change_password'));
-    this.show_or_hide_elt('cleartext_tab_content', this.is_text_tab_index(this.selected_tab_index) && this.state !== 'editing');
-    const any_files = this.gather_encrypted_files().length > 0;  // TODO: optimize
-    this.show_or_hide_elt('files_tab_content', this.is_files_tab_index(this.selected_tab_index));
-    this.show_or_hide_elt('file_list_is_empty', this.is_files_tab_index(this.selected_tab_index) && !any_files);
-    this.show_or_hide_elt('files_table', this.is_files_tab_index(this.selected_tab_index) && any_files);
+    this.show_or_hide_elt('cleartext_tab_content', this.state !== 'editing');
 
     if(this.state === 'set_initial_password')
       this.elt('set_password_input').focus();
@@ -336,14 +235,9 @@ class App {
   }
 
   update_tab_content() {
-    // Files tab is rendered specially.
-    if(this.is_files_tab_index(this.selected_tab_index))
-      return this.update_files_tab_content();
-    // Otherwise, update the content for a textual tab.
     const cleartext_node = this.elt('cleartext_content');
     let cleartext_is_empty = false;
-    if(this.state === 'unlocked' &&
-       this.is_text_tab_index(this.selected_tab_index)) {
+    if(this.state === 'unlocked') {
       const cleartext = this.cleartext_for_tab(this.selected_tab_index) ?? '';
       if(cleartext.length === 0)
         cleartext_is_empty = true;
@@ -352,45 +246,6 @@ class App {
     this.add_or_remove_class(
       this.elt('cleartext_is_empty_message'),
       'hidden', !cleartext_is_empty);
-  }
-
-  update_files_tab_content() {
-    const encrypted_files = this.gather_encrypted_files();
-    let tbody_node = this.elt('files_table_body');
-    tbody_node.textContent = '';  // delete existing rows
-    for(const encrypted_file of encrypted_files) {
-      const row_node = this.build_file_table_row(encrypted_file);
-      tbody_node.appendChild(row_node);
-    }
-  }
-
-  build_file_table_row(encrypted_file) {
-    let row_node = this.create_elt('tr');
-    row_node.appendChild(
-      this.create_elt('td', 'filename', encrypted_file.filename()));
-    row_node.appendChild(
-      this.create_elt('td', 'filesize', encrypted_file.formatted_filesize()));
-    row_node.appendChild(
-      this.create_elt('td', 'last_modified_date', encrypted_file.last_modified_date_string()));
-    let actions_node = this.create_elt('td', 'file_actions');
-
-    // File actions:
-    let command_node = null;
-    command_node = this.create_elt('a', null, 'Download');
-    command_node.href = '#';
-    command_node.onclick = (() => {
-      return this.handle_download_file(encrypted_file.filename());
-    }).bind(this);
-    actions_node.appendChild(command_node);
-    command_node = this.create_elt('a', null, 'Delete');
-    command_node.href = '#';
-    command_node.onclick = (() => {
-      return this.handle_delete_file(encrypted_file.filename());
-    }).bind(this);
-    actions_node.appendChild(command_node);
-    
-    row_node.appendChild(actions_node);
-    return row_node;
   }
 
   node_for_tab_index(tab_index) {
@@ -514,44 +369,15 @@ class App {
     this.set_password(new_password);
     const new_encryption_key = this.encryption_key;
 
-    // TODO: don't hardcode 3
-    for(let tab_index = 0; tab_index < 3; tab_index++) {
+    for(let tab_index = 0; tab_index < this.tabs_count(); tab_index++) {
       this.encryption_key = old_encryption_key;
       const cleartext = this.cleartext_for_tab(tab_index);
       this.encryption_key = new_encryption_key;
       const ciphertext = this.encrypt_text(cleartext);
       this.set_ciphertext_for_tab(tab_index, ciphertext);
     }
-    for(const encrypted_file of this.gather_encrypted_files()) {
-      this.encryption_key = old_encryption_key;
-      const cleartext = this.decrypt_data(encrypted_file.encrypted_data());
-      this.encryption_key = new_encryption_key;
-      const ciphertext = this.encrypt_data(cleartext);
-      encrypted_file.set_encrypted_data(ciphertext);
-    }
-    this.update_password_verification_ciphertext();
-  }
 
-  gather_encrypted_files() {
-    let encrypted_files = [];
-    const root_node = this.elt('encrypted_files');
-    const file_property_names = ['filename', 'filesize', 'last_modified_date', 'encrypted_data'];
-    for(const node of [...root_node.childNodes]) {
-      if(node.classList && node.classList.contains('encrypted_file')) {
-        const property_nodes = {};
-        for(const property_node of [...node.childNodes])
-          for(const property_name of file_property_names)
-            if(property_node.classList && property_node.classList.contains(property_name))
-              property_nodes[property_name] = property_node;
-        encrypted_files.push(new EncryptedFile(node, property_nodes));
-      }
-    }
-    encrypted_files.sort((a, b) => {
-      const a_fname = a.filename(), b_fname = b.filename();
-      return a_fname === b_fname ? 0 :
-        a_fname < b_fname ? -1 : +1;
-    });
-    return encrypted_files;
+    this.update_password_verification_ciphertext();
   }
 
   // Take a "plaintext" Uint8Array of data to encrypt, attach a header containing a
@@ -652,38 +478,6 @@ class App {
 
     ciphertext_blocks.push(getRandomBytes(bpb));
     borked();
-  }
-}
-
-
-class EncryptedFile {
-  // parent_node is the <div class="encrypted_file"> container representing the file.
-  // property_nodes is a table of {'filename': elt, ...} with the properties.
-  constructor(parent_node, property_nodes) {
-    this.parent_node = parent_node;
-    this.property_nodes = property_nodes;
-  }
-
-  property_value(property_name) {
-    const node = this.property_nodes[property_name];
-    return node ? (node.textContent ?? '') : '';
-  }
-
-  filename() { return this.property_value('filename'); }
-
-  formatted_filesize() {
-    const filesize = parseInt(this.property_value('filesize'));
-    if(isNaN(filesize)) return '???';
-    const kb = Math.floor((filesize + 1023)/1024);
-    return kb.toString() + 'k';
-  }
-
-  last_modified_date_string() { return this.property_value('last_modified_date'); }
-
-  encrypted_data() { return this.property_value('encrypted_data'); }
-
-  set_encrypted_data(new_base64_data) {
-    this.property_nodes['encrypted_data'].textContent = new_base64_data;
   }
 }
 

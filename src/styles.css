@@ -125,42 +125,7 @@ body {
   margin-right: 0.5em;
   font-family: monospace;
 }
-.password_input {
-  width: 12em;
-}
+.password_input { width: 12em; }
 
-
-#file_list_is_empty {
-  margin-top: 1em;
-}
-#file_upload_container {
-  margin: 1em 0;
-}
-#files_table {
-  width: auto;
-  border: 1px solid #ccc;
-  box-shadow: 0 0 1em 2px #ccc;
-  border-collapse: collapse;
-  margin: 2em 0;
-}
-#files_table th {
-  text-align: left;
-  background-color: #eef;
-  border-bottom: 2px solid #ccc;
-  padding: 0.5em 1em;
-}
-#files_table td {
-  padding: 0.5em 1em;
-}
-#files_table td.filename {
-  font-weight: bold;
-}
-#files_table .file_actions a {
-  margin-right: 1em;
-}
-
-
-#encrypted_data {
-  display: none;
-}
+#encrypted_data { display: none; }
 
