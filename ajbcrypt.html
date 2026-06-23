@@ -1873,6 +1873,14 @@ class App {
     this.encryption_key = null;
     this.selected_tab_index = 0;
     this.unsaved_changes = false;
+
+    // states:
+    //   'init': new document, no password chosen yet
+    //   'set_initial_password': no password chosen yet, viewing initial password dialog
+    //   'locked': no valid password entered yet
+    //   'unlocked': valid password entered, viewing tab text
+    //   'editing': editing tab text
+    //   'change_password': valid password, viewing change password dialog
     this.state = 'init';
   }
 
@@ -1891,8 +1899,11 @@ class App {
     this.elt('save_changes_button').onclick = this.handle_save_changes_command.bind(this);
     this.elt('cancel_changes_button').onclick = this.handle_cancel_edit_tab_command.bind(this);
     this.elt('copy_cleartext_command').onclick = this.handle_copy_cleartext.bind(this);
-    // this.elt('copy_ciphertext_command').onclick = this.handle_copy_ciphertext.bind(this);
     this.elt('change_password_command').onclick = this.handle_change_password_command.bind(this);
+
+    this.elt('change_password_button').onclick = this.handle_change_password_button.bind(this);
+    this.elt('cancel_change_password_button').onclick = this.handle_cancel_change_password_button.bind(this);
+    
     window.addEventListener('keydown', this.handle_key_down.bind(this));
     this.update_dom();
   }
@@ -1951,6 +1962,8 @@ class App {
     this.elt('set_password_input').value = '';  // clear password
     this.elt('set_password_verify_input').value = '';
     const verification_matches = password === password_verify;
+
+    // TODO: use flash
     this.show_or_hide_elt(
       'passwords_do_not_match_error', !verification_matches);
     if(verification_matches) {
@@ -1993,6 +2006,31 @@ class App {
 
   handle_change_password_command() {
     this.change_state('change_password');
+    return false;
+  }
+
+  handle_change_password_button() {
+    const new_password = this.elt('new_password_input').value;
+    const new_password_verify = this.elt('new_password_verify_input').value;
+    this.elt('new_password_input').value = '';
+    this.elt('new_password_verify_input').value = '';
+    const verification_matches = new_password === new_password_verify;
+
+    if(verification_matches) {
+      this.change_password(new_password);
+      alert('Password updated');
+      // TODO: mark as dirty
+      this.change_state('unlocked');
+    }
+    else {
+      alert('Password does not match verification');
+    }
+    return false;
+  }
+
+  handle_cancel_change_password_button() {
+    this.change_state('unlocked');
+    return false;
   }
 
   handle_edit_tab_command() {
@@ -2031,14 +2069,14 @@ class App {
     const link_elt = document.createElement('a');
     const blob = new Blob([document_string], {type: 'text/html'});
     const object_url = URL.createObjectURL(blob);
-    link_elt.setAttribute('href', URL.createObjectURL(blob));
+    link_elt.setAttribute('href', object_url);
     link_elt.setAttribute('download', this.generate_download_filename());
     document.body.appendChild(link_elt);
     link_elt.click();
-    document.body.removeChild(link_elt);
-
-    // TODO: need to clean up objectURL
-
+    setTimeout(() => {
+      document.body.removeChild(link_elt);
+      URL.revokeObjectURL(object_url);
+    }, 0);
     return false;
   }
 
@@ -2051,15 +2089,6 @@ class App {
     return false;
   }
 
-  // handle_copy_ciphertext() {
-  //   const ciphertext = this.ciphertext_for_tab(this.selected_tab_index) ?? '';
-  //   if(ciphertext.length > 0) {
-  //     navigator.clipboard.writeText(ciphertext);
-  //     alert("Ciphertext copied to system clipboard.");
-  //   }
-  //   return false;
-  // }
-
   change_state(new_state) {
     this.state = new_state;
     this.update_dom();
@@ -2071,6 +2100,10 @@ class App {
   }
 
   tabs_count() { return 3; }
+
+  flash(message, is_error = false) {
+    alert(message);
+  }
 
   // Set CSS classes, etc. according to the current app state
   update_dom() {
@@ -2091,7 +2124,7 @@ class App {
     this.show_or_hide_elt('change_password_dialog', this.state === 'change_password');
     this.show_or_hide_elt('cleartext_editor_container', this.state === 'editing');
     this.show_or_hide_elt('viewing_cleartext_commands', !(is_locked || this.state === 'editing' || this.state === 'change_password'));
-    this.show_or_hide_elt('cleartext_tab_content', this.state !== 'editing');
+    this.show_or_hide_elt('cleartext_tab_content', this.state === 'unlocked');
 
     if(this.state === 'set_initial_password')
       this.elt('set_password_input').focus();
@@ -2233,7 +2266,6 @@ class App {
     const old_encryption_key = this.encryption_key;
     this.set_password(new_password);
     const new_encryption_key = this.encryption_key;
-
     for(let tab_index = 0; tab_index < this.tabs_count(); tab_index++) {
       this.encryption_key = old_encryption_key;
       const cleartext = this.cleartext_for_tab(tab_index);
@@ -2241,8 +2273,8 @@ class App {
       const ciphertext = this.encrypt_text(cleartext);
       this.set_ciphertext_for_tab(tab_index, ciphertext);
     }
-
     this.update_password_verification_ciphertext();
+    this.flash('Password changed successfully.');
   }
 
   // Take a "plaintext" Uint8Array of data to encrypt, attach a header containing a
