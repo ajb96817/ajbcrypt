@@ -1,12 +1,8 @@
 
 
-let prng = null;
-
-
 class App {
   constructor() {
-    this.encryption_key = null;
-    this.selected_tab_index = 0;
+    this.encryption = new Encryption();
     this.unsaved_changes = false;
 
     // states:
@@ -23,9 +19,6 @@ class App {
     this.change_state(
       this.has_password_verification_ciphertext() ?
         'locked' : 'set_initial_password');
-    for(const [tab_index, tab_node]
-        of [...this.elt('tab_bar').children].entries())
-      tab_node.onclick = (() => this.handle_tab_click(tab_index)).bind(this);
     this.elt('set_password_button').onclick = this.handle_set_password_button.bind(this);
     this.elt('enter_password_button').onclick = this.handle_enter_password_button.bind(this);
     this.elt('edit_tab_command').onclick = this.handle_edit_tab_command.bind(this);
@@ -54,15 +47,7 @@ class App {
     const key = event.key;
     let handled = true;
     if(event.ctrlKey) {
-      const tabswitch_keymap = {
-        '1': 0, 'n': 0,
-        '2': 1, 'p': 1,
-        '3': 2, 'o': 2
-      };
-      const tab_index = tabswitch_keymap[key];
-      if(tab_index !== undefined)
-        this.switch_to_tab_index(tab_index);
-      else if(key === 'e')
+      if(key === 'e')
         this.handle_edit_tab_command();
       else if(key === 'd')  // TODO: remove
         this.debug();
@@ -78,18 +63,13 @@ class App {
     }
   }
 
-  handle_tab_click(tab_index) {
-    this.switch_to_tab_index(tab_index);
-    return false;
-  }
-
-  switch_to_tab_index(tab_index) {
-    if(this.state === 'unlocked') {
-      this.selected_tab_index = tab_index;
-      this.update_dom();
-      this.update_tab_content();
-    }
-  }
+  // switch_to_tab_index(tab_index) {
+  //   if(this.state === 'unlocked') {
+  //     this.selected_tab_index = tab_index;
+  //     this.update_dom();
+  //     this.update_tab_content();
+  //   }
+  // }
 
   handle_set_password_button() {
     const password = this.elt('set_password_input').value;
@@ -281,32 +261,6 @@ class App {
       'hidden', !cleartext_is_empty);
   }
 
-  node_for_tab_index(tab_index) {
-    const node_name = ['tab', tab_index.toString(), 'ciphertext'].join('_');
-    return this.elt(node_name);
-  }
-
-  ciphertext_for_tab(tab_index) {
-    const node = this.node_for_tab_index(tab_index);
-    if(!node) return null;
-    const ciphertext = node.innerText ?? '';
-    return ciphertext.length === 0 ? null : ciphertext;
-  }
-
-  set_ciphertext_for_tab(tab_index, new_ciphertext) {
-    const node = this.node_for_tab_index(tab_index);
-    if(!node) return null;
-    node.innerText = new_ciphertext;
-  }
-
-  cleartext_for_tab(tab_index) {
-    const ciphertext = this.ciphertext_for_tab(tab_index);
-    if(ciphertext && this.encryption_key)
-      return this.decrypt_text(ciphertext);
-    else
-      return null;
-  }
-
   elt(element_id) {
     return document.getElementById(element_id);
   }
@@ -319,8 +273,7 @@ class App {
   }
 
   add_or_remove_class(node, class_name, add) {
-    if(add)
-      node.classList.add(class_name);
+    if(add) node.classList.add(class_name);
     else node.classList.remove(class_name);
   }
 
@@ -346,27 +299,53 @@ class App {
     ].join('');
   }
 
-  password_verification_phrase() { return 'Password is valid.'; }
-
-  verify_password() {
-    if(!this.encryption_key)
-      return 'no_password';  // (potential) encryption key not entered yet by user.
-    const verification_ciphertext = this.elt('verification_ciphertext').innerText ?? '';
-    if(verification_ciphertext.length === 0) {
-      // If there is no verification ciphertext in the document,
-      // we can still try to use the key, it'll just decrypt text to garbage
-      // if it's the wrong password.  This shouldn't normally happen unless
-      // the user deletes the verification ciphertext from the document manually.
-      return 'unverified';
+  // Get the "raw" encrypted data from the contents of the
+  // #encrypted_data element in the document.  The data is stored
+  // in the HTML document with Base64 encoding; this method decodes
+  // it into a Uint8Array, presumably in UTF-8 encoded format.
+  // If the encrypted data is empty or malformed, this returns null.
+  fetch_encrypted_data() {
+    const encrypted_data_base64 = this.elt('encrypted_data').innerText ?? '';
+    try {
+      const utf8_bytes = Uint8Array.fromBase64(encrypted_data_base64);
+      return utf8_bytes.length === 0 ? null : utf8_bytes;
     }
-    // Try to decrypt the verification ciphertext embedded in the document
-    // (from when the original encryption key was set) and make sure it decrypts
-    // to what we expect.
-    const verified =
-          (this.decrypt_text(verification_ciphertext) ?? '') ===
-          this.password_verification_phrase();
-    return verified ? 'verified' : 'verification_failed';
+    catch(e) {
+      alert("Malformed encrypted data: " + e.toString());
+      return null;
+    }
   }
+
+  // Decrypt the cyphertext using the current password, and verify the checksum.
+  // Returns the decrypted data converted into a UTF-8 string, or null if validation failed.
+  fetch_cleartext() {
+    const encrypted_bytes = this.fetch_encrypted_data();
+    if(!encrypted_bytes) return null;
+    const encoded_plaintext = const this.decrypt_data(encrypted_bytes);
+    if(!encoded_plaintext) return null;
+    return new TextDecoder('utf-8').decode(encoded_plaintext);
+  }
+
+  // Store "raw" encrypted data into the #encrypted_data element
+  // from a byte array (should be in UTF-8 encoding).  The data will be
+  // Base64-encoded.  Passing null as the argument will empty out the
+  // #encrypted_data element altogether.
+  store_encrypted_data(uint8array) {
+    if(!uint8array || uint8array.length === 0)
+      return this.elt('encrypted_data').innerText = '';
+    const base64_string = uint8array.toBase64();
+    // Insert newlines into the base64-encoded string for "readability".
+    const line_length = 64;
+    const lines = [];
+    for(let i = 0; i < base64_string.length; i += line_length)
+      lines.push(base64_string.slice(i, i+line_length));
+    this.elt('encrypted_data').innerText = lines.join("\n");
+  }
+
+  store_cleartext(cleartext_string) {
+    borked();
+  }
+
 
   update_password_verification_ciphertext() {
     const ciphertext = this.encrypt_text(this.password_verification_phrase());
@@ -420,7 +399,7 @@ class App {
     const header_length = 20;
     const padding_length = bytes_per_block - ((plaintext_byte_length + header_length) % bytes_per_block);
     const packed_byte_length = plaintext_byte_length + header_length + padding_length;
-    const message_data = new Uint8Array(new ArrayBuffer(packed_byte_length));
+    const message_data = new Uint8Array(packed_byte_length);
     // Calculate plaintext checksum.
     md5_init();
     for(let i = 0; i < plaintext_byte_length; i++)
@@ -462,28 +441,27 @@ class App {
     return base64_ciphertext;
   }
 
-  // NOTE: ciphertext is a Base64-encoded string.
-  decrypt_data(ciphertext) {
-    if(!ciphertext) return null;
+  // Returns decrypted byte-array text, validating the checksum.
+  // Returns null if checksum isn't valid (wrong password).
+  // The result bytearray is UTF-8 encoded and still needs to turned
+  // back into a Javascript string.
+  decrypt_data(ciphertext_bytes) {
+    if(!ciphertext_bytes) return null;
     if(!this.encryption_key) return null;
-    const ct = disarm_base64(ciphertext);
-    let result = rijndaelDecrypt(ct, this.encryption_key, 'CBC');
+    const ct = ciphertext_bytes; // disarm_base64(ciphertext);
+    let result_array = rijndaelDecrypt(ct, this.encryption_key, 'CBC');
+    const result = new Uint8Array(result_array);
     const header = result.slice(0, 20);
     result = result.slice(20);
     let dl = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
     if(dl < 0 || dl > result.length) {
       // alert("Message (length " + result.length + ") truncated.  " +
       //       dl + " characters expected.");
-      dl = result.length;
       return null;
     }
     md5_init();
-    let plaintext_pieces = [];
-    for(let i = 0; i < dl; i++) {
-      plaintext_pieces.push(String.fromCharCode(result[i]));
+    for(let i = 0; i < dl; i++)
       md5_update(result[i]);
-    }
-    const plaintext = plaintext_pieces.join('');
     md5_finish();
     for(let i = 0; i < md5_digestBits.length; i++) {
       if(md5_digestBits[i] !== header[i]) {
@@ -491,15 +469,15 @@ class App {
         return null;
       }
     }
-    return plaintext;
+    return result;
   }
 
-  // Returns null if message is corrupted and/or encryption key is invalid.
-  decrypt_text(ciphertext) {
-    const plaintext = this.decrypt_data(ciphertext);
-    if(!plaintext) return null;
-    return decode_utf8(plaintext);
-  }
+  // // Returns null if message is corrupted and/or encryption key is invalid.
+  // decrypt_text(ciphertext) {
+  //   const plaintext = this.decrypt_data(ciphertext);
+  //   if(!plaintext) return null;
+  //   return decode_utf8(plaintext);
+  // }
 
   // "Optimized" version of the JavaScrypt rijndaelEncrypt() routine.
   // The original routine has a O(n^2) problem because of its use of concat().

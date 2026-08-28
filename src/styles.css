@@ -13,6 +13,8 @@ body {
 
 .hidden { display: none; }
 
+.error_message { color: #a00; }
+
 /* #flash { */
 /*   margin-top: 1em; */
 /*   color: #f88; */
@@ -32,15 +34,13 @@ body {
 
 
 /* Shown when there is no (valid) encryption key entered yet. */
-#locked_area {
-  border: 1px solid black;
-  margin: 1em;
-  padding: 0.5em 1em;
-  background-color: #f8f8f8;
-  box-shadow: 0 0 1em 2px #ccc;
-}
-
-.error_message { color: #a00; }
+/* #locked_area { */
+/*   border: 1px solid black; */
+/*   margin: 1em; */
+/*   padding: 0.5em 1em; */
+/*   background-color: #f8f8f8; */
+/*   box-shadow: 0 0 1em 2px #ccc; */
+/* } */
 
 
 #last_modified {
